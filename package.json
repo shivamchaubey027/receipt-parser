@@ -1,0 +1,11 @@
+{
+    "name": "receipt-parser-monorepo",
+    "version": "1.0.0",
+    "description": "Receipt Parser Complete Pipeline",
+    "scripts": {
+        "dev": "npm run dev:backend & npm run dev:frontend",
+        "dev:backend": "cd backend && npm run dev",
+        "dev:frontend": "cd frontend && npm run dev",
+        "install:all": "cd backend && npm install && cd ../frontend && npm install"
+    }
+}
