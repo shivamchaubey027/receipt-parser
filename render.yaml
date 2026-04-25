@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: receipt-parser
+    env: docker
+    dockerfilePath: Dockerfile
+    # Render's free tier spins down after inactivity.
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY
+        # Syncing is set to false so you can input it securely in the Render dashboard!
+        sync: false
+    # ⚠️ IMPORTANT NOTE ABOUT SQLITE ON RENDER ⚠️
+    # Render Free Tier does NOT support persistent Disks.
+    # Because your architecture uses a local 'receipts.db', the database will be 
+    # totally wiped every time the free service goes to sleep or you push a new commit.
+    #
+    # For a takehome demo, this is completely fine (it basically resets itself).
+    # If you want real persistence on Render, you must upgrade to a Starter Plan ($7)
+    # uncomment the disk section below:
+    #
+    # disk:
+    #   name: sqlite-data
+    #   mountPath: /app/backend/uploads
+    #   sizeGB: 1
