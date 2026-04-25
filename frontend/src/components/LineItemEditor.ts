@@ -9,21 +9,21 @@ import { formatCurrency } from "../utils/domain";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface LineItemEditorCallbacks {
-    onChange: (items: LineItem[]) => void;
+  onChange: (items: LineItem[]) => void;
 }
 
 export function createLineItemEditor(
-    items: LineItem[],
-    callbacks: LineItemEditorCallbacks
+  items: LineItem[],
+  callbacks: LineItemEditorCallbacks
 ): HTMLElement {
-    // Local mutable copy — changes are emitted via callbacks.onChange
-    let state: LineItem[] = items.map((i) => ({ ...i }));
+  // Local mutable copy — changes are emitted via callbacks.onChange
+  let state: LineItem[] = items.map((i) => ({ ...i }));
 
-    const container = document.createElement("div");
-    container.className = "line-item-editor";
+  const container = document.createElement("div");
+  container.className = "line-item-editor";
 
-    function render(): void {
-        container.innerHTML = `
+  function render(): void {
+    container.innerHTML = `
       <div class="line-item-editor__header">
         <span class="line-item-editor__col-name">Item</span>
         <span class="line-item-editor__col-amount">Amount</span>
@@ -45,11 +45,11 @@ export function createLineItemEditor(
       </button>
     `;
 
-        attachListeners();
-    }
+    attachListeners();
+  }
 
-    function renderRow(item: LineItem, idx: number): string {
-        return `
+  function renderRow(item: LineItem, idx: number): string {
+    return `
       <li class="line-item-editor__row" data-idx="${idx}">
         <input
           type="text"
@@ -83,70 +83,70 @@ export function createLineItemEditor(
         </button>
       </li>
     `;
-    }
+  }
 
-    function attachListeners(): void {
-        // Input changes
-        container.querySelectorAll<HTMLInputElement>(
-            "[data-idx][data-field]"
-        ).forEach((input) => {
-            input.addEventListener("change", () => {
-                const idx = parseInt(input.dataset.idx!, 10);
-                const field = input.dataset.field as "name" | "amount";
-                if (field === "name") {
-                    state[idx].name = input.value;
-                } else {
-                    state[idx].amount = parseFloat(input.value) || 0;
-                }
-                callbacks.onChange([...state]);
-            });
-        });
+  function attachListeners(): void {
+    // Input changes
+    container.querySelectorAll<HTMLInputElement>(
+      "[data-idx][data-field]"
+    ).forEach((input) => {
+      input.addEventListener("change", () => {
+        const idx = parseInt(input.dataset.idx!, 10);
+        const field = input.dataset.field as "name" | "amount";
+        if (field === "name") {
+          state[idx].name = input.value;
+        } else {
+          state[idx].amount = parseFloat(input.value) || 0;
+        }
+        callbacks.onChange([...state]);
+      });
+    });
 
-        // Remove buttons
-        container.querySelectorAll<HTMLButtonElement>(
-            ".line-item-editor__remove"
-        ).forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const idx = parseInt(btn.dataset.idx!, 10);
-                state.splice(idx, 1);
-                callbacks.onChange([...state]);
-                render();
-            });
-        });
+    // Remove buttons
+    container.querySelectorAll<HTMLButtonElement>(
+      ".line-item-editor__remove"
+    ).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.idx!, 10);
+        state.splice(idx, 1);
+        callbacks.onChange([...state]);
+        render();
+      });
+    });
 
-        // Add item button
-        const addBtn = container.querySelector<HTMLButtonElement>("#add-line-item")!;
-        addBtn.addEventListener("click", () => {
-            state.push({ name: "", amount: 0 });
-            callbacks.onChange([...state]);
-            render();
-            // Focus the newly added name input
-            const rows = container.querySelectorAll<HTMLInputElement>(
-                ".line-item-editor__name-input"
-            );
-            rows[rows.length - 1]?.focus();
-        });
-    }
+    // Add item button
+    const addBtn = container.querySelector<HTMLButtonElement>("#add-line-item")!;
+    addBtn.addEventListener("click", () => {
+      state.push({ name: "", amount: 0 });
+      callbacks.onChange([...state]);
+      render();
+      // Focus the newly added name input
+      const rows = container.querySelectorAll<HTMLInputElement>(
+        ".line-item-editor__name-input"
+      );
+      rows[rows.length - 1]?.focus();
+    });
+  }
 
-    render();
-    return container;
+  render();
+  return container;
 }
 
 function escapeHtml(str: string): string {
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
  * Render a read-only, formatted line items table (for history view).
  */
-export function createLineItemTable(items: LineItem[]): HTMLElement {
-    const table = document.createElement("table");
-    table.className = "line-item-table";
-    table.innerHTML = `
+export function createLineItemTable(items: LineItem[], currencyCode: string | null = "USD"): HTMLElement {
+  const table = document.createElement("table");
+  table.className = "line-item-table";
+  table.innerHTML = `
     <thead>
       <tr>
         <th>Item</th>
@@ -155,16 +155,16 @@ export function createLineItemTable(items: LineItem[]): HTMLElement {
     </thead>
     <tbody>
       ${items
-            .map(
-                (item) => `
+      .map(
+        (item) => `
         <tr>
           <td>${escapeHtml(item.name)}</td>
-          <td class="line-item-table__amount">${formatCurrency(item.amount)}</td>
+          <td class="line-item-table__amount">${formatCurrency(item.amount, currencyCode)}</td>
         </tr>
       `
-            )
-            .join("")}
+      )
+      .join("")}
     </tbody>
   `;
-    return table;
+  return table;
 }

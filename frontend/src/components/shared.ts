@@ -37,28 +37,39 @@ export function createHistoryPanel(
     return panel;
   }
 
-  const categories: Record<string, number> = {};
-  let totalSpend = 0;
+  const currencyTotals: Record<string, number> = {};
+  const categoryTotals: Record<string, Record<string, number>> = {};
 
   receipts.forEach(r => {
     if (!r.edited_json && !r.raw_json) return;
     try {
       const data = JSON.parse(r.edited_json || r.raw_json);
       const total = typeof data.total === "number" ? data.total : 0;
-      totalSpend += total;
       const category = data.category || "Uncategorized";
-      categories[category] = (categories[category] || 0) + total;
+      const currency = data.currency || "USD";
+
+      currencyTotals[currency] = (currencyTotals[currency] || 0) + total;
+
+      if (!categoryTotals[currency]) categoryTotals[currency] = {};
+      categoryTotals[currency][category] = (categoryTotals[currency][category] || 0) + total;
     } catch { }
   });
 
-  const categoryHtml = Object.entries(categories)
-    .sort((a, b) => b[1] - a[1])
-    .map(([cat, amt]) => `<span class="report-tag">${cat}: ${formatCurrency(amt)}</span>`)
+  const totalTitles = Object.entries(currencyTotals)
+    .map(([curr, amt]) => formatCurrency(amt, curr))
+    .join(" + ");
+
+  const categoryHtml = Object.entries(categoryTotals)
+    .flatMap(([curr, categories]) => {
+      return Object.entries(categories)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, amt]) => `<span class="report-tag">${cat}: ${formatCurrency(amt, curr)}</span>`);
+    })
     .join("");
 
   panel.innerHTML = `
     <div class="report-summary">
-      <h2 class="report-summary__title">Total Spend: ${formatCurrency(totalSpend)}</h2>
+      <h2 class="report-summary__title">Total Spend: ${totalTitles || "$0.00"}</h2>
       <div class="report-summary__categories">${categoryHtml}</div>
     </div>
     <ul class="history-panel__list" role="list" aria-label="Receipt history">
@@ -111,7 +122,7 @@ function renderReceiptCard(receipt: ReceiptSummary): string {
     if (receipt.edited_json || receipt.raw_json) {
       const data = JSON.parse(receipt.edited_json || receipt.raw_json);
       if (data.merchant) merchant = data.merchant;
-      if (typeof data.total === "number") formattedTotal = formatCurrency(data.total);
+      if (typeof data.total === "number") formattedTotal = formatCurrency(data.total, data.currency);
       if (data.category) category = data.category;
     }
   } catch { }

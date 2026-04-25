@@ -12,6 +12,7 @@ export interface LineItem {
 export interface ParseResult {
     merchant: string | null;
     category: string | null;
+    currency: string | null;
     date: string | null;
     line_items: LineItem[];
     total: number | null;

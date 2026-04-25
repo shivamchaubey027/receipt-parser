@@ -1,31 +1,169 @@
-# Receipt Parser
+# Abstract
 
-## What did you build?
+This project is a receipt parsing pipeline that uses LLMs to extract structured data from receipt images. It is built with Express.js and TypeScript on the backend, and vanilla TypeScript on the frontend. It uses SQLite for local storage and Sharp for image processing.
 
-I built a full-stack, local-first receipt parsing pipeline that turns image uploads into structured data. The backend is an Express/TypeScript REST API backed by a local SQLite Database configured in WAL-mode for resilience. It features a robust, provider-agnostic LLM orchestration layer that attempts extraction via Gemini 2.5 Flash, and seamlessly falls back to Anthropic Claude Haiku in the event of schema validation failures or network errors. Image uploads are automatically normalized (resized, rotated, and compressed) via Sharp to optimize token and bandwidth costs, and deduplicated using SHA-256 hashing to prevent duplicate API billing. The frontend is a clean, dependency-free Vanilla TypeScript Single Page Application (SPA), emphasizing a "correction-first" UX. It surfaces LLM-extracted data alongside confidence indicators, automatically detects mismatches between calculated line-item sums and the stated receipt total, and caches user edits.
+---
 
-## What are the biggest tradeoffs you made, and why?
+# Architecture
 
-1. **No-Framework Vanilla Frontend vs. React/Vue:** I decided to build the frontend as a pure TypeScript SPA using a lightweight Controller + DOM DOM factory pattern. *Why:* For a prototype focused specifically on UI correction UX, dragging in a heavy Virtual DOM framework and complex build toolchain felt like over-engineering constraint. Vanilla TS ensures maximum performance and zero dependency overhead, while still allowing for strict typing between the backend Zod schemas and frontend.
-2. **Synchronous SQLite vs. Async Postgres:** I opted for `better-sqlite3` running completely synchronously. *Why:* Unlike Node pipelines involving heavy network I/O, SQLite is embedded. Asynchronous SQLite wrappers often introduce unnecessary Promise overhead for local disk reads. By enabling WAL (Write-Ahead Logging) mode, `better-sqlite3` behaves as a high-performance, concurrent transactional datastore without the operational overhead of spinning up a Dockerized Postges instance.
-3. **Primary-Fallback LLM Strategy over Single Heavy Model:** Instead of sending all receipts to a single, expensive "smart" model (like GPT-4V or Claude 3.5 Sonnet), I chose Gemini 2.5 Flash as the primary parser. *Why:* It's incredibly fast and aggressively priced. To handle its occasional hallucinations, I wrapped the parser in an Orchestrator that validates output strictly against a Zod schema. If Gemini fails, it triggers Anthropic Claude Haiku. This optimizes for cost/latency on 90% of requests, while preserving reliability for the 10% edge cases.
+![Architecture Diagram](images/arch-diagram.png)
 
-## Where did you use an LLM, and for what?
+To build this, I knew from the start that treating LLMs like magic doesn't work. LLMs hallucinate, they timeout, and they sometimes return completely broken JSON. So, I approached this by designing a pipeline that defends against these failures at every step.
 
-I heavily utilized LLMs (like Claude through an agentic assistant) as a pair-programming partner during this assignment:
+Here is exactly how the architecture evolved:
 
-- **Architecture and scaffolding:** Brainstorming the project structure and drafting the initial TypeScript boilerplate.
-- **Prompt Engineering:** Iterating on the system instructions for the Vision providers to ensure the models output pure, parse-able JSON without Markdown wrappers.
-- **CSS Design:** Translating my design concepts (Clean, minimal light theme, glassmorphism) into a working CSS Custom Properties system.
+1. The "Correction-First" Data Contract Before I wrote any code, I locked down a strict data schema using Zod. My rule was simple: if the LLM returns an array instead of a string, or forgets a total, we drop it immediately and mark the extraction as failed. On the frontend, I intentionally built a "Correction-First" UI. The app automatically runs math checks to ensure Sum(Line Items) == Receipt Total. If the numbers don't match, the UI throws a "Total Mismatch Warning" so the user can fix the LLM's mistake before saving.
 
-## What would you do with another week?
+2. Optimizing the Images (Sharp & SHA-256) Uploading massive 10MB iPhone photos to an LLM API is super slow and wastes tokens. So, I added a middleware using Sharp to automatically resize, compress, and strip EXIF data before sending the image. I also added a SHA-256 hashing layer. If a user uploads the exact same receipt twice, my backend detects the duplicate hash and returns the parsed result straight from the local Database, completely skipping the 10-second API delay.
 
-1. **Decoupled OCR vs NLP Parsing:** Right now, the LLM is doing both Optical Character Recognition (reading the pixels) and Natural Language Processing (understanding the receipt structure). With more time, I would insert a traditional, cheap OCR layer (like Tesseract.js or AWS Textract) to extract the raw text, and *only* pass text to the LLM to structure. This drastically limits hallucination risks and minimizes latency.
-2. **Fuzzy Search & Analytics UI:** I'd expand the History view into an expense dashboard, allowing users to query expenditures by category or merchant using Full Text Search (FTS5) in SQLite.
-3. **Frontend E2E Testing:** With the correction UX being paramount, relying on manual clicks is risky. I'd add Playwright tests to simulate a user uploading an image, purposely modifying the extracted total to create a mismatch, and verifying the warning banners behave appropriately.
+3. The Primary-Fallback Orchestrator Relying on just GPT-4o for everything is way too expensive, but relying on a cheaper model alone means a higher failure rate. To fix this, I built an LLM Orchestrator. The pipeline first tries to parse the image using Gemini 2.5 Flash because it is extremely fast and cheap. If Gemini hits a rate limit (like a 429 error) or gets confused by the schema, the backend silently catches the error and falls back to OpenAI GPT-4o-mini. This gives us the speed of a cheap model for 90% of requests, but the reliability of a smarter model for the edge cases.
 
-## What's one thing in this spec you'd push back on if I were your PM?
+4. Why SQLite? For the database, I made a strict business decision to use better-sqlite3 embedded directly in the app. Since I configured it in WAL (Write-Ahead Logging) mode, it handles concurrent transactions perfectly. Setting up a full PostgreSQL Docker container for a local-first receipt parser is massive overkill. SQLite gave me the speed and simplicity I needed without the ops headache.
 
-**I would push back strongly on the implicit requirement that "Line Items" are universally required or primary to user value.**
-While line items are interesting technically, users capturing receipts structurally care overwhelmingly about three numbers: `Subtotal`, `Tax`, and `Total` (for expensing or accounting purposes). Asking the OCR or the LLM to meticulously parse line items on crumpled, localized receipts with hand-written modifications often introduces a cascading series of noisy errors.
-Furthermore, providing users a UX where they must manually correct poorly-parsed line items just so the `Sum(Line Items) = Total` validation passes is a deeply frustrating user experience. Unless this application is explicitly designed for an itemized splitting use-case (like Splitwise), I would advise the PM that we should demote Line Items to an *optional/collapse-by-default* extraction, and instead prioritize the reliable extraction of the Tax, Tip, and Date triad.
+---
+
+# Phase 1: Planning and RFC
+
+Before writing any code, I created an RFC (Request for Comments) document to define the data contracts and choose the technology stack clearly.
+
+### Data Contract
+
+I defined a strict single source of truth using Zod schemas. If the LLM response does not match the schema exactly—for example, if a required value is missing or a field type is incorrect—the extraction is immediately marked as failed.
+
+### Tech Stack Decisions
+
+**Backend:** Express with TypeScript
+Chosen because it is simple, fast, and flexible without unnecessary abstraction.
+
+**Database:** SQLite using better-sqlite3
+I selected embedded SQLite running in WAL (Write-Ahead Logging) mode. This provides fast concurrent transactions without needing to manage a separate PostgreSQL container.
+
+**Frontend:** Vanilla TypeScript SPA
+I intentionally avoided frameworks like React or Vue. This kept the project lightweight and allowed faster DOM updates with a smaller scope.
+
+---
+
+# Phase 2: Iterative Development
+
+## Iteration 1: Making the Pipeline Efficient and Safe
+
+Uploading large receipt images (like 10MB iPhone photos) directly to an LLM API is slow and expensive.
+
+To solve this:
+
+* I used **Sharp** to resize images, compress them, and remove EXIF metadata before sending them to the API
+* I implemented **SHA-256 hashing** for deduplication
+
+If the same receipt is uploaded again, the backend detects it from the stored hash and immediately returns the cached result from SQLite. This avoids unnecessary API calls and removes the 10-second LLM delay.
+
+---
+
+## Iteration 2: Improving Reliability with a Fallback Orchestrator
+
+Using only one expensive model like GPT-4o for all receipts increases cost. Using only a cheaper model reduces reliability.
+
+To solve this, I built an **LLM Orchestrator**.
+
+Pipeline behavior:
+
+1. First attempt parsing with **Gemini 2.5 Flash** (fast and low cost)
+2. If it fails due to rate limits, timeout, or schema mismatch
+3. Automatically fallback to **GPT-4o-mini**
+
+This ensures both performance and reliability without affecting the user experience.
+
+---
+
+## Iteration 3: Correction-First UI Design
+
+OCR systems are never fully accurate. Because this is a finance-related tool, the interface must assume errors can happen.
+
+So I designed the frontend editor to validate extracted values automatically.
+
+Examples:
+
+* If line items total $14.00 but receipt total is detected as $15.50
+* The UI shows a **Total Mismatch Detected** warning
+* The user must review the difference before saving
+
+Fields with low confidence are also highlighted so users know exactly where manual correction is needed.
+
+### Images
+
+![Dashboard View](images/landing.png)
+
+### Editor View
+
+![Correction Flow](images/screenshot-3.png)
+![Cached Reciept](images/screenshot-2.png)
+
+### History Dashboard
+
+![History Dashboard](images/history-reciepts.png)
+
+---
+
+# Major Tradeoffs and Decisions
+
+## Vanilla TypeScript Instead of React or Vue
+
+I built the frontend as a pure TypeScript SPA using a Controller + DOM factory pattern.
+
+Reason:
+
+This project focuses mainly on correction workflow UX. Using a heavy framework with a virtual DOM and complex tooling would be unnecessary overhead. Vanilla TypeScript keeps performance high and dependencies minimal while still supporting strict typing with backend schemas.
+
+---
+
+## Synchronous SQLite Instead of Async PostgreSQL
+
+I used **better-sqlite3** in synchronous mode.
+
+Reason:
+
+Since SQLite runs locally inside the application, asynchronous wrappers only add extra Promise overhead without real benefit. Direct synchronous access is faster and simpler here.
+
+---
+
+## Multi-Model Strategy Instead of Single Heavy Model
+
+Instead of sending every request to one expensive model, I implemented a primary-fallback orchestration strategy.
+
+Reason:
+
+This keeps most requests fast and cheap while still handling edge cases reliably.
+
+---
+
+# How I Used LLMs During Development
+
+I used LLMs as a pair-programming assistant throughout the assignment.
+
+Main use cases:
+
+* Planning project structure and generating initial TypeScript scaffolding
+* Improving prompts so the model outputs clean JSON without Markdown formatting
+* Converting UI design ideas into a working CSS Custom Properties theme
+
+---
+
+# What I Would Improve With One More Week
+
+## Separate OCR from NLP Parsing
+
+Currently, the vision model handles both text reading and structure understanding.
+
+With more time:
+
+I would first extract raw text using a traditional OCR system like **AWS Textract**, then send only the text to the LLM for structured parsing. This would reduce hallucinations and improve speed.
+
+---
+
+## Deployment to Render
+
+The project is already Dockerized.
+
+I have deployed it to Render, the smaller isssue with it is that I have exhausted the api credits for the free tier of gemini and openAI.
+
+<https://receipt-parser-3z5n.onrender.com/>
+---

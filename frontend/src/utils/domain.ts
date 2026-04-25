@@ -48,11 +48,20 @@ export function confidenceLabel(confidence: Confidence): string {
 /**
  * Format a number as a currency string (USD by default).
  */
-export function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-    }).format(amount);
+export function formatCurrency(amount: number, currencyCode: string | null = "USD"): string {
+    const code = currencyCode?.toUpperCase() || "USD";
+    try {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: code,
+        }).format(amount);
+    } catch {
+        // Fallback for invalid currency codes
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+        }).format(amount);
+    }
 }
 
 /**
@@ -95,6 +104,7 @@ export function emptyParseResult(): ParseResult {
     return {
         merchant: null,
         category: null,
+        currency: "USD",
         date: null,
         line_items: [],
         total: null,

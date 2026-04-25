@@ -110,7 +110,7 @@ export function createReceiptEditor(
           <div class="editor__totals">
             <div class="editor__totals-row">
               <span>Computed from items</span>
-              <span class="editor__totals-computed">${formatCurrency(computedTotal)}</span>
+              <span class="editor__totals-computed">${formatCurrency(computedTotal, state.currency)}</span>
             </div>
             <div class="editor__field editor__field--total ${isLowConfidenceField(state, "total") ? "editor__field--uncertain" : ""}">
               <label for="field-total" class="editor__label">
@@ -163,7 +163,7 @@ export function createReceiptEditor(
           const computedEl = root.querySelector(".editor__totals-computed");
           const totalInput = root.querySelector<HTMLInputElement>("#field-total");
           const newComputed = computeLineItemTotal(items);
-          if (computedEl) computedEl.textContent = formatCurrency(newComputed);
+          if (computedEl) computedEl.textContent = formatCurrency(newComputed, state.currency);
           if (totalInput) {
             const isMismatch =
               state.total !== null &&
@@ -259,8 +259,8 @@ export function createReceiptEditor(
     return `
       <div class="banner banner--mismatch" role="alert">
         <strong>Total mismatch detected.</strong>
-        Line items sum to <strong>${formatCurrency(computed)}</strong>
-        but receipt total is <strong>${formatCurrency(state.total ?? 0)}</strong>.
+        Line items sum to <strong>${formatCurrency(computed, state.currency)}</strong>
+        but receipt total is <strong>${formatCurrency(state.total ?? 0, state.currency)}</strong>.
         Please verify.
       </div>
     `;

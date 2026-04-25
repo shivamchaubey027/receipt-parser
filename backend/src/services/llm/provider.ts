@@ -21,6 +21,7 @@ Return ONLY valid JSON matching this exact schema:
 {
   "merchant": "string or null",
   "category": "string (e.g. Dining, Groceries, Transport, Office, Utilities, Retail) or null",
+  "currency": "string (3-letter ISO code e.g. USD, INR, EUR) or null",
   "date": "string (YYYY-MM-DD) or null",
   "line_items": [
     { "name": "string", "amount": number }
@@ -37,7 +38,8 @@ Rules:
 - confidence is "high" when all fields are clearly legible
 - confidence is "medium" when 1–2 fields are ambiguous
 - Do not include subtotal, tax, or tip in line_items unless they are the ONLY items.
-- Guess the broad spending "category" based on the merchant and items (e.g. if it's a restaurant, use "Dining").
+- Guess the broad spending "category" based on the merchant and items
+- Identify the standard 3-letter currency code (e.g. "USD", "INR", "EUR") from the symbol
 - If the image is utterly illegible, return nulls and "low" confidence.
 - low_confidence_fields lists field names where you are uncertain
 - return null for any field you cannot determine

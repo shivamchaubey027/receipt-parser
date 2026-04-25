@@ -12,6 +12,7 @@ export const LineItemSchema = z.object({
 export const ParseResultSchema = z.object({
     merchant: z.string().nullable(),
     category: z.string().nullable().optional(),
+    currency: z.string().nullable().optional(),
     date: z.string().nullable(), // ISO-8601 preferred, but accept raw string
     line_items: z.array(LineItemSchema),
     total: z.number().nullable(),
