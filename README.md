@@ -21,6 +21,10 @@ Here is exactly how the architecture evolved:
 4. Why SQLite? For the database, I made a strict business decision to use better-sqlite3 embedded directly in the app. Since I configured it in WAL (Write-Ahead Logging) mode, it handles concurrent transactions perfectly. Setting up a full PostgreSQL Docker container for a local-first receipt parser is massive overkill. SQLite gave me the speed and simplicity I needed without the ops headache.
 
 ---
+# Live Link: 
+https://receipt-parser-3z5n.onrender.com/
+
+(API keys may get exhausted though)
 
 # Phase 1: Planning and RFC
 
