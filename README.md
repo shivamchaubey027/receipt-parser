@@ -21,10 +21,12 @@ Here is exactly how the architecture evolved:
 4. Why SQLite? For the database, I made a strict business decision to use better-sqlite3 embedded directly in the app. Since I configured it in WAL (Write-Ahead Logging) mode, it handles concurrent transactions perfectly. Setting up a full PostgreSQL Docker container for a local-first receipt parser is massive overkill. SQLite gave me the speed and simplicity I needed without the ops headache.
 
 ---
-# Live Link: 
-https://receipt-parser-3z5n.onrender.com/
 
-(API keys may get exhausted though)
+# Live Link
+
+<https://receipt-parser-3z5n.onrender.com/>
+
+Deployed on Render — if API credits are exhausted, clone locally with your own key per README instructions
 
 # Phase 1: Planning and RFC
 
@@ -102,7 +104,6 @@ Fields with low confidence are also highlighted so users know exactly where manu
 ![Cached Reciept](images/screenshot-2.png)
 ![Correction Flow](images/screenshot-1.png)
 
-
 ### History Dashboard
 
 ![History Dashboard](images/history-reciepts.png)
@@ -165,11 +166,17 @@ I would first extract raw text using a traditional OCR system like **AWS Textrac
 
 ---
 
+# What would you push back on if I were your PM?
+
+The spec says 'save the corrected version' without defining what the original extraction is for downstream. If there's no audit use case, we're storing redundant data. I'd push back and ask: is the goal correction-as-feedback-loop (use diffs to improve the prompt over time), or correction-as-record-keeping? One needs a diff table, the other just an edited_json column. I assumed the latter but this should be aligned before building in production.
+
 ## Deployment to Render
 
 The project is already Dockerized.
 
-I have deployed it to Render, the smaller isssue with it is that I have exhausted the api credits for the free tier of gemini and openAI.
+I have deployed it to Render, the smaller issue with it is that I have exhausted the api credits for the free tier of gemini and openAI.
 
 <https://receipt-parser-3z5n.onrender.com/>
 ---
+
+Thanks For Reading!
