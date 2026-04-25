@@ -98,8 +98,10 @@ Fields with low confidence are also highlighted so users know exactly where manu
 
 ### Editor View
 
-![Correction Flow](images/screenshot-3.png)
+![Upload Flow](images/screenshot-3.png)
 ![Cached Reciept](images/screenshot-2.png)
+![Correction Flow](images/screenshot-1.png)
+
 
 ### History Dashboard
 
