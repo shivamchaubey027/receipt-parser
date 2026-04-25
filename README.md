@@ -26,7 +26,38 @@ Here is exactly how the architecture evolved:
 
 <https://receipt-parser-3z5n.onrender.com/>
 
-Deployed on Render — if API credits are exhausted, clone locally with your own key per README instructions
+*(Deployed on Render — if API credits are exhausted, clone locally and use your own key)*
+
+---
+
+# Quick Start (Run Locally in 1 Click)
+
+1. **Clone the repo:**
+
+   ```bash
+   git clone https://github.com/shivamchaubey027/receipt-parser.git
+   cd receipt-parser
+   ```
+
+2. **Add your API Keys:**
+   Create a `.env` file in the `backend/` directory:
+
+   ```bash
+   OPENAI_API_KEY=sk-your-key-here
+   GEMINI_API_KEY=AIzaSy-your-key-here
+   LLM_PROVIDER=openai
+   ```
+
+3. **Run with a single command:**
+   If you have Docker installed, the entire project spins up natively:
+
+   ```bash
+   docker-compose up --build
+   ```
+
+   *(Or if using Node: run `npm run install:all` then `npm run dev` from the root).*
+
+   The application will be instantly live at **<http://localhost:5173>** (or <http://localhost:3001> if using Docker).
 
 # Phase 1: Planning and RFC
 
